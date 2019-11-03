@@ -1,0 +1,9 @@
+.vscode
+*.json
+*.csv
+*.whl
+/data
+links.txt
+test*.py
+loadSql.py
+OLDgamesList.py
