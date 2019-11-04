@@ -5,18 +5,21 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
+import sys
 import json
 import datetime
 import pandas as pd
 import psycopg2
-from scrapy.exceptions import CloseSpider
+from scrapy.exceptions import CloseSpider, DropItem
 from nbaData.items import scheduleGame
 from pandas.io.json import json_normalize
+
 
 # Information for SQL Database
 sqlHost = 'localhost'
 sqlDatabase = 'nba'
 sqlUser = 'alexchristine'
+
 
 # Flattens a single column response from sql into a one dimensional list
 def flattenSingleColResp(sqlResponse, removeDuplicates=True):
@@ -38,6 +41,244 @@ def flattenSingleColResp(sqlResponse, removeDuplicates=True):
 class NbadataPipeline(object):
     def process_item(self, item, spider):
         return item
+
+
+class playByPlayPipeline(object):
+
+    # Initializes the class variables
+    def __init__(self):
+        self.playsConn = psycopg2.connect(host=sqlHost, database=sqlDatabase, user=sqlUser)
+        self.playsCur = self.playsConn.cursor()
+
+        self.errIds = []
+
+
+    def open_spider(self, spider):
+        if spider.name != 'plays':
+            return
+        
+    
+    def close_spider(self, spider):
+        if spider.name != 'plays':
+            return
+
+        self.playsConn.commit()
+        self.playsConn.close()
+
+
+    # If a number is 0 - which would not work as a foriegn key - fills NULL instead
+    def numOrNull (self, idNum):
+        try:
+            if int(idNum) != 0:
+                return idNum
+            
+            return None
+
+        except:            
+            return None
+    
+    def process_item(self, item, spider):
+        if spider.name != 'plays':
+            return item
+        
+        pbpItem = dict(item)
+
+
+        insertPlayQuery = """
+            INSERT INTO play_by_play (game_id, clock, quarter, score_a, 
+                                      score_h, description, event, event_type,
+                                      player_id, player_id_e, player_id_o, team_id,
+                                      team_id_off, loc_x, loc_y, m_type,
+                                      opt_1, opt_2, ordering, last_modify_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+
+        if pbpItem.get('idPlayer') == pbpItem.get('idTeam'):
+            idPlayer = None
+        else:
+            idPlayer = self.numOrNull(pbpItem.get('idPlayer'))
+
+        insertPlayArgs = (pbpItem.get('idGame'), pbpItem.get('clock'),
+                          pbpItem.get('quarter'), pbpItem.get('scoreA'),
+                          pbpItem.get('scoreH'), pbpItem.get('description'),
+                          pbpItem.get('event'), pbpItem.get('eventType'),
+                          idPlayer, self.numOrNull(pbpItem.get('idPlayerE')),
+                          self.numOrNull(pbpItem.get('idPlayerO')), self.numOrNull(pbpItem.get('idTeam')),
+                          self.numOrNull(pbpItem.get('idTeamOf')), pbpItem.get('locX'),
+                          pbpItem.get('locY'), pbpItem.get('mType'),
+                          pbpItem.get('opt1'), pbpItem.get('opt2'),
+                          pbpItem.get('ordering'), str(datetime.datetime.today().date()))
+        
+
+        try:
+            self.playsCur.execute(insertPlayQuery, insertPlayArgs)
+            self.playsConn.commit()
+
+        except psycopg2.errors.lookup('23503'):
+            print ('Error: ' + str(pbpItem.get('idGame')) + ' problem inputting data - Event: ' + str(pbpItem.get('event')))
+            
+
+            self.playsConn.close()
+
+            self.playsConn = psycopg2.connect(host=sqlHost, database=sqlDatabase, user=sqlUser)
+            self.playsCur = self.playsConn.cursor()
+
+            insertPlayArgsSimp = (pbpItem.get('idGame'), pbpItem.get('clock'),
+                                  pbpItem.get('quarter'), pbpItem.get('scoreA'),
+                                  pbpItem.get('scoreH'), pbpItem.get('description'),
+                                  pbpItem.get('event'), pbpItem.get('eventType'),
+                                  None, None,
+                                  None, None,
+                                  None, pbpItem.get('locX'),
+                                  pbpItem.get('locY'), pbpItem.get('mType'),
+                                  pbpItem.get('opt1'), pbpItem.get('opt2'),
+                                  pbpItem.get('ordering'), str(datetime.datetime.today().date()))
+
+            self.playsCur.execute(insertPlayQuery, insertPlayArgsSimp)
+
+
+        return item
+
+
+# Pipeline for player_box_scores - writes objects to postgreSQL database nba 
+class playerBoxScorePipeline(object):
+
+
+    # Initializes the class variables
+    def __init__(self):
+        self.playerBoxConn = psycopg2.connect(host=sqlHost, database=sqlDatabase, user=sqlUser)
+        self.playerBoxCur = self.playerBoxConn.cursor()
+
+    
+    # Opens the spider
+    def open_spider(self, spider):
+        if spider.name != 'playerBoxScores':
+            return
+
+    
+    # Closes spider and commits changes to SQL
+    def close_spider(self, spider):
+        if spider.name != 'playerBoxScores':
+            return
+
+        self.playerBoxConn.commit()
+        self.playerBoxConn.close()
+        
+    
+    # Process the item - writes it to SQL database
+    # This works on the assumption that the queries designed to ensure
+    # select games for examination (url connected to game_id) work correctly
+    def process_item(self, item, spider):
+        if spider.name != 'playerBoxScores':
+            return item
+        
+        plyrBoxItm = dict(item)
+
+
+        # Query to insert the item into player_box_scores
+        insertPlayerBoxQuery = """ 
+            INSERT INTO player_box_scores (game_id, player_id, team_id, location,
+                                           position, status, memo, number, 
+                                           pts, fgm, fga, ast, 
+                                           reb, tov, plus_minus, mins, 
+                                           sec, total_sec, fouls_p, fouls_t, 
+                                           fg3m, fg3a, pts_paint, fgm_paint, 
+                                           fga_paint, blk, blk_a, stl,
+                                           o_reb, d_reb, ftm, fta, 
+                                           pts_fast_break, fgm_fast_break, fga_fast_break, last_modify_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+
+
+        # Creates a tuple of arguments - ordered to match query
+        insertPlayerArgs = (plyrBoxItm.get('idGame'), plyrBoxItm.get('idPlayer'),
+                            plyrBoxItm.get('idTeam'), plyrBoxItm.get('gameLocation'),
+                            plyrBoxItm.get('pos'), plyrBoxItm.get('status'), 
+                            plyrBoxItm.get('memo'), plyrBoxItm.get('number'),
+                            plyrBoxItm.get('pts'), plyrBoxItm.get('fgm'),
+                            plyrBoxItm.get('fga'), plyrBoxItm.get('ast'), 
+                            plyrBoxItm.get('reb'), plyrBoxItm.get('tov'),
+                            plyrBoxItm.get('plusMinus'), plyrBoxItm.get('mins'),
+                            plyrBoxItm.get('sec'), plyrBoxItm.get('totalSec'), 
+                            plyrBoxItm.get('pf'), plyrBoxItm.get('tf'),
+                            plyrBoxItm.get('fg3m'), plyrBoxItm.get('fg3a'),
+                            plyrBoxItm.get('ptsPaint'), plyrBoxItm.get('fgmPaint'),
+                            plyrBoxItm.get('fgaPaint'), plyrBoxItm.get('blk'),
+                            plyrBoxItm.get('blkA'), plyrBoxItm.get('stl'),
+                            plyrBoxItm.get('oreb'), plyrBoxItm.get('dreb'),
+                            plyrBoxItm.get('ftm'), plyrBoxItm.get('fta'),
+                            plyrBoxItm.get('ptsFastBreak'), plyrBoxItm.get('fgmFastBreak'),
+                            plyrBoxItm.get('fgaFastBreak'), str(datetime.datetime.today().date()))
+
+
+        # Execute the query to add item
+        self.playerBoxCur.execute(insertPlayerBoxQuery, insertPlayerArgs)
+        
+
+        # Returns item to the pipeline
+        return item
+
+
+# Pipeline for team_box_scores - writes objects to postgreSQL database nba
+class teamBoxScorePipeline(object):
+
+    def __init__(self):
+
+        # Initialize connection to database
+        self.teamBoxConn = psycopg2.connect(host=sqlHost, database=sqlDatabase, user=sqlUser)
+        self.teamBoxCur = self.teamBoxConn.cursor()
+    
+
+    def open_spider(self, spider):
+        if spider.name != 'teamBoxScores':
+            return
+
+
+
+    def close_spider(self, spider):
+        if spider.name != 'teamBoxScores':
+            return
+
+        self.teamBoxConn.commit()
+        self.teamBoxConn.close()
+    
+
+    def process_item(self, item, spider):
+        if spider.name != 'teamBoxScores':
+            return item
+        
+        boxScoreItem = dict(item)
+
+
+        instertBoxArgs = (boxScoreItem.get('idGame'), boxScoreItem.get('idTeam'),
+                          boxScoreItem.get('location'), boxScoreItem.get('pts'),
+                          boxScoreItem.get('fgm'), boxScoreItem.get('fga'),
+                          boxScoreItem.get('ast'), boxScoreItem.get('reb'),
+                          boxScoreItem.get('tov'), boxScoreItem.get('fouls'),
+                          boxScoreItem.get('fg3m'), boxScoreItem.get('fg3a'),
+                          boxScoreItem.get('ptsPaint'), boxScoreItem.get('fgmPaint'),
+                          boxScoreItem.get('fgaPaint'), boxScoreItem.get('blk'), 
+                          boxScoreItem.get('stl'), boxScoreItem.get('secondChancePts'),
+                          boxScoreItem.get('ptsOffTov'), boxScoreItem.get('oreb'),
+                          boxScoreItem.get('dreb'), boxScoreItem.get('ftm'),
+                          boxScoreItem.get('fta'), boxScoreItem.get('ptsFastBreak'),
+                          boxScoreItem.get('fgmFastBreak'), boxScoreItem.get('fgaFastBreak'),
+                          boxScoreItem.get('ptsQ1'), boxScoreItem.get('ptsQ2'), 
+                          boxScoreItem.get('ptsQ3'), boxScoreItem.get('ptsQ4'),
+                          boxScoreItem.get('ptsOT'), boxScoreItem.get('bigLead'),
+                          boxScoreItem.get('teamReb'), boxScoreItem.get('teamTov'),
+                          str(datetime.datetime.today().date()))
+
+        insertBoxScoreQuery = """ 
+            INSERT INTO team_box_scores (game_id, team_id, location, pts, fgm, fga, ast, reb, tov, fouls, fg3m, fg3a,
+                                         pts_paint, fgm_paint, fga_paint, blk, stl, pts_second_chance, pts_off_tov,
+                                         o_reb, d_reb, ftm, fta, pts_fast_break, fgm_fast_break, fga_fast_break,
+                                         pts_q1, pts_q2, pts_q3, pts_q4, pts_ot, big_lead, team_reb, team_tov, last_modify_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+
+
+        self.teamBoxCur.execute(insertBoxScoreQuery, instertBoxArgs)
+
+        return item
+
 
 
 # Pipeline for active_players - writes objects to postreSQL database nba
@@ -609,12 +850,13 @@ class scheduleWriterPipeline(object):
             updatedAwayRecord = self.splitRecord(gameLoad.get('aRecord'))
 
             updateGamesArgs = (updatedHomeRecord[0], updatedHomeRecord[1], gameLoad.get('hScore'),
-                               updatedAwayRecord[0], updatedAwayRecord[1], gameLoad.get('aScore'), gameId)
+                               updatedAwayRecord[0], updatedAwayRecord[1], gameLoad.get('aScore'),
+                               str(datetime.datetime.today().date()), gameId)
 
             # Query to update game entry
             updateGamesQuery = """
                 UPDATE games
-                SET home_wins_record = %s, home_loss_record = %s, home_score = %s, away_wins_record = %s, away_loss_record = %s, away_score = %s
+                SET home_wins_record = %s, home_loss_record = %s, home_score = %s, away_wins_record = %s, away_loss_record = %s, away_score = %s, last_modify_date = %s
                 WHERE game_id = %s;"""
 
             # Executes the query to update data in games (SQL)

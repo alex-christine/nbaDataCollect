@@ -69,7 +69,11 @@ ITEM_PIPELINES = {
     'nbaData.pipelines.scheduleWriterPipeline': 301,
     'nbaData.pipelines.teamWriterPipeline': 302,
     'nbaData.pipelines.playerWriterPipeline': 303,
-    'nbaData.pipelines.activePlayerWriterPipeline': 304
+    'nbaData.pipelines.activePlayerWriterPipeline': 304,
+    'nbaData.pipelines.teamBoxScorePipeline': 305,
+    'nbaData.pipelines.playerBoxScorePipeline': 306,
+    'nbaData.pipelines.playByPlayPipeline': 307
+   
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

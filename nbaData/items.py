@@ -20,6 +20,14 @@ def cleanScore(x):
         return -1
 
 
+    # Checks if height is present if not returns 0
+def cleanIntVal(x):
+    if str(x).isnumeric():
+        return int(x)
+    
+    return 0
+
+
 # Cleans the time input
 def cleanTime(x):
     return str(x).split('T')[1]
@@ -37,8 +45,307 @@ def noPos(x):
     return x if x!= '' else 'Bench'
 
 
+def makeInt(x):
+    try:
+        return int(x)
+    except:
+        return 0
 
 
+def makeKey(x):
+    try:
+        if (int(x) != 0) : return int(x)
+        
+        return None
+
+    except:
+        return None
+
+
+# Defines Play by Play Item
+class playByPlay(scrapy.Item):
+
+    idGame = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    quarter = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    event = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    clock = scrapy.Field(
+        input_processor = MapCompose(str),
+        output_processor = TakeFirst()
+    )
+
+    description = scrapy.Field(
+        input_processor = MapCompose(str),
+        output_processor = TakeFirst()
+    )
+
+    locX = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    locY = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    opt1 = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    opt2 = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    mType = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    eventType = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    idPlayerO = scrapy.Field(
+        input_processor = MapCompose(makeKey),
+        output_processor = TakeFirst()
+    )
+
+    idTeam  = scrapy.Field(
+        input_processor = MapCompose(makeKey),
+        output_processor = TakeFirst()
+    )
+
+    idPlayer = scrapy.Field(
+        input_processor = MapCompose(makeKey),
+        output_processor = TakeFirst()
+    )
+
+    scoreH = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    scoreA = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    idPlayerE = scrapy.Field(
+        input_processor = MapCompose(makeKey),
+        output_processor = TakeFirst()
+    )
+
+    idTeamOf = scrapy.Field(
+        input_processor = MapCompose(makeKey),
+        output_processor = TakeFirst()
+    )
+
+    ordering = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+
+# playerBoxScoreItem
+class playerBoxScore(scrapy.Item):
+
+    idGame = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    idPlayer = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    idTeam = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    gameLocation = scrapy.Field(
+        input_processor = MapCompose(str),
+        output_processor = TakeFirst()
+    )
+
+    name = scrapy.Field(
+        input_processor = MapCompose(str),
+        output_processor = TakeFirst()
+    )
+
+    number = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    pos = scrapy.Field(
+        input_processor = MapCompose(noPos),
+        output_processor = TakeFirst()
+    )
+
+    status = scrapy.Field(
+        input_processor = MapCompose(noStatus),
+        output_processor = TakeFirst()
+    )
+
+    memo = scrapy.Field(
+        input_processor = MapCompose(noMemo),
+        output_processor = TakeFirst()
+    )
+
+    mins = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    sec = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    totalSec = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    pts = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    plusMinus = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fga = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fgm = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fg3a = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fg3m = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fta = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    ftm = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    oreb = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    dreb = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    reb = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    ast = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    stl = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    blk = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    blkA = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    pf = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    tf = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    tov = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    ptsFastBreak = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fgaFastBreak = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fgmFastBreak = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    ptsPaint = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fgaPaint = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+    fgmPaint = scrapy.Field(
+        input_processor = MapCompose(int),
+        output_processor = TakeFirst()
+    )
+
+
+# Defines the teamBoxScore Object
 class teamBoxScore(scrapy.Item):
     idGame = scrapy.Field(
         input_processor = MapCompose(int),
@@ -260,14 +567,6 @@ class activePlayer(scrapy.Item):
 
 # Defines item structure for player items
 class playerItem(scrapy.Item):
-
-    # Checks if height is present if not returns 0
-    def cleanIntVal(self, x):
-        if str(x).isnumeric():
-            return int(x)
-        
-        return 0
-
     playerId = scrapy.Field(
         input_processor = MapCompose(int),
         output_processor = TakeFirst()
